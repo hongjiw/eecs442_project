@@ -10,7 +10,9 @@ for train_ind = 3 : size(data_list, 1)
     data_name = data_list(train_ind).name;
     data_dir = [data_path, '/', data_name];
     data_file = [data_dir, '/', data_name, '_', num2str(bucket_size), '.mat'];
-    
+    if ~data_list(train_ind).isdir
+        continue;
+    end
     %print progress
     fprintf('Collecting data: %s\n', data_dir);
     

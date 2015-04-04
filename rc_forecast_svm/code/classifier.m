@@ -1,4 +1,4 @@
-function demo_regressor(data_path, range, model, bucket_size)
+function classifier(data_path, range, model, bucket_size)
 %This function performs SVM prediction and outputs a pred.txt in the proper
 %directory
 
@@ -7,6 +7,9 @@ data_list = dir(data_path);
 
 %iterate through all the demo sets
 for demo_ind = 3 : size(data_list, 1)
+    if ~data_list(demo_ind).isdir
+        continue;
+    end
     %load feature
     data_name = data_list(demo_ind).name;
     data_dir = [data_path, '/', data_name];

@@ -16,7 +16,7 @@ vl_version verbose
 vl_setup demo
 
 %define root path
-root_path = '/home/hongjiw/research/rc_forecast_svm';
+root_path = '/home/hongjiw/research/eecs442_project/rc_forecast_svm';
 
 %% Data Collection
 bucket_size = 25;
@@ -62,6 +62,6 @@ fprintf('Testing data: %dx%d\n', size(test_data, 1), size(test_data, 2));
 %% Demo
 range = 1;
 fprintf('Demostrate the prediction...\n');
-demo_regressor(data_path, range, model, bucket_size);
+classifier(data_path, range, model, bucket_size);
 show_prediction(data_path, [6 7], bucket_size); %set true to show frames
 
