@@ -1,4 +1,15 @@
-function rc_prep(data_path, bucket_size)
+%rc collect hdf5 data
+root = '/home/hongjiw';
+
+%% Add dependency
+%add matcaffe
+addpath([root, '/research/library/caffe/matlab/caffe']);
+addpath([root, '/research/library/caffe/matlab/caffe/hdf5creation']);
+
+%% Collect Data
+bucket_size = 25;
+data_path = [root '/research/data/RC/clips'];
+
 [data, label, seg] = collect_data(data_path, bucket_size);
 fprintf('Finally collected %d data samples from %s\n', size(label,2), data_path);
 
@@ -14,7 +25,7 @@ test_label_hdf5 = label_hdf5(:,train_size+1:end);
 %write to hdf5
 hdf5_train_file = [data_path, '/train.h5'];
 hdf5_test_file = [data_path, '/test.h5'];
-startloc=struct('dat',[1,1,1,1], 'lab', [1,1]);
+startloc=struct('data',[1,1,1,1], 'label', [1,1]);
 store2hdf5(hdf5_train_file, train_data_hdf5, train_label_hdf5, true, startloc, size(train_label_hdf5,2)); 
 store2hdf5(hdf5_test_file, test_data_hdf5, test_label_hdf5, true, startloc, size(test_label_hdf5,2)); 
 
@@ -25,4 +36,7 @@ fclose(FILE);
 FILE=fopen([data_path, '/', 'test_list.txt'], 'w');
 fprintf(FILE, '%s', hdf5_test_file);
 fclose(FILE);
-end
+
+
+
+
