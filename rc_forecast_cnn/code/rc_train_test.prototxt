@@ -8,7 +8,7 @@ layer {
     phase: TRAIN
   }
   hdf5_data_param {
-    source: "/home/hongjiw/research/data/RC/clips/train_list.txt"
+    source: "/home/hongjiw/research/eecs442_project/rc_forecast_cnn/code/train_list.txt"
     batch_size: 10
   }
 }
@@ -22,7 +22,7 @@ layer {
     phase: TEST
   }
   hdf5_data_param {
-    source: "/home/hongjiw/research/data/RC/clips/test_list.txt"
+    source: "/home/hongjiw/research/eecs442_project/rc_forecast_cnn/code/test_list.txt"
     batch_size: 164
   }
 }

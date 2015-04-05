@@ -78,15 +78,17 @@ if __name__ == '__main__':
 	#pred_loc is Nx[x,y] (numpy array), where N is the number of test samples
 	pred_loc, loss = rc_forecast(network_file_path, pretrained_model_path, h5_test_file)
 
-	print pred_loc
-	print loss
+	#save to file and wrap up
+	print "**************************************"
+	print "Final loss: %f" %(loss)
 
-	#save to file
 	#save the predicted locations
 	pred_loc_file_path = data_dir + '/pred_loc.txt'
 	np.savetxt(pred_loc_file_path, pred_loc, fmt='%d', delimiter=',')
-
+	print "Generated %s" %(pred_loc_file_path)
 	#save the loss
 	loss_file_path = data_dir + '/loss.txt'
 	FILE = open(loss_file_path, 'w')
 	FILE.write(str(loss))
+	print "Generated %s" %(loss_file_path)
+	print "**************************************"
