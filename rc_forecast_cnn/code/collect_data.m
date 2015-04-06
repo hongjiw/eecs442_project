@@ -1,8 +1,7 @@
-function [data_all, label_all, seg] = collect_data(data_path, bucket_size)
-
+function [data_all, label_all, names] = collect_data(data_path, bucket_size)
 data_list = dir(data_path);
-data_all = []; label_all = []; seg = [];
-
+data_all = []; label_all = [];
+names = [];
 %iterate through all the training sets
 for train_ind = 3 : size(data_list, 1)
     if ~data_list(train_ind).isdir
@@ -35,15 +34,18 @@ for train_ind = 3 : size(data_list, 1)
         label_inst = (tracker_loc(frame_ind+1,1:2) - data_inst(1,:))';
         label = [label label_inst];
         %append data
-        data_inst = data_inst - repmat(data_inst(1,:), size(data_inst, 1), 1) + 1;
+        data_inst = data_inst - repmat(data_inst(1,:), size(data_inst, 1), 1);
         data = [data data_inst];
     end
     
     %print progress
-    fprintf('Collected %d data from %s\n', size(label,1), data_name);
+    fprintf('Collected %d data from %s\n', size(label,2), data_name);
     data_all = [data_all data];
     label_all = [label_all label];
     
-    seg = [seg size(label, 2)];
+    %return name and seg info
+    seg_inst.seg = size(label,2);
+    seg_inst.name = data_name;
+    names = [names {seg_inst}];
 end
 end
