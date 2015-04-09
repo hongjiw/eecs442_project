@@ -52,23 +52,27 @@ def rc_loss(pred, label):
 	#NOT CLEAR DIVIDE BY THE NUM_SAMPLE OR THE LENGTH OF THE TRAJECTORY
 	return (np.sum(loss_stack) / num_sample)
 
-
-def rc_forecast(network_file_path, pretrained_model_path, h5_test_file, rn, pred_save_path=None):
-	#check if the file exists
-	if not os.path.isfile(pretrained_model_path and network_file_path and h5_test_file):
-		print("Missing the input file")
-
-	#initialize the caffe model
-	net = caffe.Net(network_file_path, pretrained_model_path, caffe.TEST)
-
+def hdf5_read(h5_file_path):
 	#read in test data
-	with h5py.File(h5_test_file,'r') as f:
+	with h5py.File(h5_file_path,'r') as f:
 		h5_data_4D = f['data'][()]
 		h5_label_2D = f['label'][()]
 
 	num_testsample = h5_label_2D.shape[0]
 	print "**************************************"
-	print "Read %d test samples from %s" % (num_testsample, h5_test_file)
+	print "Read %d test samples from %s" % (num_testsample, h5_file_path)
+	return h5_data_4D, h5_label_2D
+
+def cnn_predict(network_file_path, pretrained_model_path, h5_file_path, rn, pred_save_path=None):
+	#check if the file exists
+	if not os.path.isfile(pretrained_model_path and network_file_path and h5_file_path):
+		print("Missing the input file")
+
+	#initialize the caffe model
+	net = caffe.Net(network_file_path, pretrained_model_path, caffe.TEST)
+
+	#read in data
+	h5_data_4D, h5_label_2D = hdf5_read(h5_file_path)
 
 	#make sure the batch size and the saved hdf5 size are equal 
 	assert(net.blobs['data'].data.shape == h5_data_4D.shape)
@@ -106,7 +110,7 @@ def rc_forecast(network_file_path, pretrained_model_path, h5_test_file, rn, pred
 	#return the forecast loss
 	return rc_loss(pred_loc, h5_label_2D)
 
-def rc_train(solver_file_path):
+def cnn_train(solver_file_path):
 	solver = caffe.get_solver(solver_file_path)
 	solver.solve()
 	solver.test_nets[0].forward()
@@ -131,7 +135,7 @@ def vis_square(data, title, padsize=1, padval=0):
 	cv2.imshow(title, data)
 	cv2.waitKey(0)
 
-def rc_net_info(network_file_path, pretrained_model_path):
+def cnn_netinfo(network_file_path, pretrained_model_path):
 	#check if the file exists
 	if not os.path.isfile(pretrained_model_path and network_file_path):
 		print("Missing the input file")
@@ -159,36 +163,88 @@ def rc_net_info(network_file_path, pretrained_model_path):
 		elif len(feat.shape) == 4:
 			vis_square(feat.transpose(0, 2, 3, 1), k)
 
-if __name__ == '__main__':
-
+def cnn_main(recurrent_depth, test_file_path):
 	#use CPU mode
 	caffe.set_mode_cpu()
 
 	#train the caffe
 	solver_file_path = './rc_solver.prototxt'
-	rc_train(solver_file_path)
+	#cnn_train(solver_file_path)
 
 	#show the network infomation
 	pretrained_model_path = '../model/_iter_10000.caffemodel'
 	network_file_path = './rc_forecast.prototxt'
-	rc_net_info(network_file_path, pretrained_model_path)
+	#cnn_netinfo(network_file_path, pretrained_model_path)
 
 	#perform forecast
 	#pred_loc is Nx[x,y] (numpy array), where N is the number of test samples
-	rn = 1 #set the recurrent number for prediction
-	h5_test_file = '/home/hongjiw/research/data/RC/clips/test.h5'
+	rn = 10 #set the recurrent number for prediction
 	save_pred_to = '/home/hongjiw/research/data/RC/clips/pred_loc.txt'
-	loss = rc_forecast(network_file_path, pretrained_model_path, h5_test_file, rn)
-
-	#analysis
+	loss = cnn_predict(network_file_path, pretrained_model_path, test_file_path, rn, save_pred_to)
 	print "Forecast loss with %d rccurrent prediction is: %f" %(rn, loss)
+	
+	#analysis	
 	loss_stack = np.array([])
-	rn_num = 16
-	for rn in range(1, rn_num):
-		loss = rc_forecast(network_file_path, pretrained_model_path, h5_test_file, rn)
+	for rn in range(1, recurrent_depth):
+		loss = cnn_predict(network_file_path, pretrained_model_path, test_file_path, rn)
 		loss_stack = np.hstack((loss_stack, loss))
-	plt.plot(loss_stack, range(1,rn_num))
-	plt.ylabel('Loss = Euc Dis / Num Frames')
-	plt.xlabel('#recurrent forecast(s)')
+		
+	for rn in range(1, recurrent_depth):
+		print "Loss with %d recurrent depth: %f" %(rn, loss_stack[rn-1])	
+	
+	return loss_stack
+
+
+def static_main(recurrent_depth, test_file_path):
+	if not os.path.isfile(test_file_path):
+		print("Missing the input file")
+	#read in test data
+	h5_data_4D, h5_label_2D = hdf5_read(test_file_path)
+
+	loss_stack = np.array([])
+	for rn in range(1, recurrent_depth):
+		pred_loc = np.reshape(h5_data_4D[:,:,:,h5_data_4D.shape[3]-1], h5_label_2D.shape)
+		pred_loc = np.tile(pred_loc, [1, rn])
+		loss = rc_loss(pred_loc, h5_label_2D)
+		loss_stack = np.hstack((loss_stack, loss))
+
+	for rn in range(1, recurrent_depth):
+		print "Loss with %d recurrent depth: %f" %(rn, loss_stack[rn-1])	
+
+	return loss_stack
+
+def constv_main(recurrent_depth, test_file_path):
+	if not os.path.isfile(test_file_path):
+		print("Missing the input file")
+	#read in test data
+	h5_data_4D, h5_label_2D = hdf5_read(test_file_path)
+
+def consta_main(recurrent_depth, test_file_path):
+	if not os.path.isfile(test_file_path):
+		print("Missing the input file")
+	#read in test data
+	h5_data_4D, h5_label_2D = hdf5_read(test_file_path)
+
+
+if __name__ == '__main__':
+	recurrent_depth = 15;
+	test_file_path = '/home/hongjiw/research/data/RC/clips/test.h5'
+	#CNN MAIN FUNCTION
+	#cnn_loss = cnn_main(recurrent_depth, test_file_path)
+	#plt.plot(range(1,recurrent_depth), cnn_loss)
+
+	#BASELINES
+	#static_loss = static_main(recurrent_depth, test_file_path)
+	#plt.plot(range(1,recurrent_depth), static_loss)
+
+	constv_loss = constv_main(recurrent_depth, test_file_path)
+	consta_loss = consta_main(recurrent_depth, test_file_path)
+
+
+	#PLOT ALL MOTHODS
+	"""
+	plt.ylabel('Loss = Euc dis / Num frames')
+	plt.xlabel('#Recurrent depth')
 	plt.grid()
-	plt.show()
+	pltself.show()
+	"""

@@ -19,8 +19,9 @@ for data_ind = 3 : size(data_list, 1)
     
     %get predicted label
     pred_labels = pred_labels_test_all(pred_index:pred_index+test_seg{test_set_ind}.seg-1, :);
+    pred_index = pred_index + test_seg{test_set_ind}.seg;
     test_set_ind = test_set_ind + 1;
-    
+
     %get demo set
     data_dir = [data_path, '/', data_list(data_ind).name];
     img_dir = [data_dir, '/', 'imgs'];
@@ -40,9 +41,6 @@ for data_ind = 3 : size(data_list, 1)
     ind_offset = str2double(img_00(4:8)) - 1;
     %print progress
     fprintf('Demo %s\n', data_dir);
-    
-    %show trajectory
-    %show_trajectory(imread([img_dir, '/', img_00]), tracker_loc_file, pred_loc_file, bucket_size);
     
     %show frames
     for img_ind = 1 : num_imgs-1

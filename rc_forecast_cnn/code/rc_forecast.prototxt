@@ -4,6 +4,7 @@ input_dim: 164
 input_dim: 1
 input_dim: 2
 input_dim: 25
+
 layer {
   name: "conv1"
   type: "Convolution"

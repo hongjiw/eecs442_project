@@ -24,9 +24,9 @@ for train_ind = 3 : size(data_list, 1)
     num_frames = size(tracker_loc, 1);
     
     data = []; label = [];
+    
     %extract motion features (x, y)
     %extract label
-    
     for frame_ind = bucket_size : num_frames - 1
         data_inst = tracker_loc(frame_ind-bucket_size+1 : frame_ind, 1:2);
         
