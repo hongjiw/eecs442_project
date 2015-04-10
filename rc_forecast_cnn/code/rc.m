@@ -12,13 +12,14 @@ addpath([root, '/research/eecs442_project/rc_forecast_svm/code']);
 bucket_size = 25;
 data_path = [root '/research/data/RC/clips'];
 dev_path = [root '/research/eecs442_project/rc_forecast_cnn/code']
+seg_file_path = [data_path, '/test_seg.mat'];
 test_num = 2;
-rc_collect_hdf5(bucket_size, data_path, dev_path, test_num);
+rc_collect_hdf5(bucket_size, data_path, dev_path, test_num, seg_file_path);
 
 %% Demo
 model_def_file_path = '/home/hongjiw/research/eecs442_project/rc_forecast_cnn/code/rc_train_test.prototxt';
 model_file_path = '/home/hongjiw/research/eecs442_project/rc_forecast_cnn/model/_iter_10000.caffemodel';
 
-test_seg = load([dev_path, '/data_seg_info.mat']);
+test_seg = load(seg_file_path);
 test_seg = test_seg.test_seg;
 show_prediction(data_path, test_seg, bucket_size); %set true to show frames

@@ -1,4 +1,5 @@
 import numpy as np
+import scipy as sp
 import sklearn
 import sklearn.datasets
 import sklearn.linear_model
@@ -19,80 +20,64 @@ import caffe
 #check if the model file exists
 import os
 
-def rc_loss(pred, label):
+def rc_loss(pred, label, test_seg):
 	#pred is a N x (2*rn) numpy matrix
 	#label is a N x 2 numpy matrix
-
 	#make sure input is valid	
 	assert(not pred.shape[1] % 2)
-	assert(pred.shape[0] == label.shape[0])
+	assert(pred.shape[0] == label.shape[0] == np.sum(test_seg, axis=0))
 
 	#rn: recurrent prediction number
 	rn = pred.shape[1] / 2
 
 	loss_stack = np.array([])
 
-	#range of valid comparison: 1:numsample
-	num_sample = label.shape[0] - rn + 1
-
 	#loss calculation
-	for sample_ind in range(0, num_sample):
-		loss_buf = 0
-		for rn_ind in range(0, rn):
-			loss_buf = loss_buf + np.linalg.norm(label[sample_ind+rn_ind,:] -
-				pred[sample_ind, [rn_ind*2,rn_ind*2+1]])
-			#print label[sample_ind+rn_ind,:], pred[sample_ind,[rn_ind*2, rn_ind*2+1]]
-
-		loss_stack = np.hstack((loss_stack, loss_buf / rn))
-
-	#sanity check
-	assert(loss_stack.shape[0] == num_sample)
+	offset = 0;
+	for seg_num in test_seg:
+		#range of valid comparison: 1:numsample
+		num_sample = seg_num - rn + 1
+		for sample_ind in range(0, num_sample):
+			loss_buf = 0
+			for rn_ind in range(0, rn):
+				loss_buf = loss_buf + np.linalg.norm(label[offset+sample_ind+rn_ind,:] -
+					pred[offset+sample_ind, [rn_ind*2,rn_ind*2+1]])
+				#print label[sample_ind+rn_ind,:], pred[sample_ind,[rn_ind*2, rn_ind*2+1]]
+			loss_stack = np.hstack((loss_stack, loss_buf / rn))
 
 	#final loss
-	#NOT CLEAR DIVIDE BY THE NUM_SAMPLE OR THE LENGTH OF THE TRAJECTORY
-	return (np.sum(loss_stack) / num_sample)
+	return (np.sum(loss_stack) / loss_stack.shape[0])
 
-def hdf5_read(h5_file_path):
+def hdf5_read(file_path):
 	#read in test data
-	with h5py.File(h5_file_path,'r') as f:
-		h5_data_4D = f['data'][()]
-		h5_label_2D = f['label'][()]
+	with h5py.File(file_path,'r') as f:
+		data = f['data'][()]
+		label = f['label'][()]
+	num_test = label.shape[0]
+	print "Read %d test samples from %s" % (num_test, file_path)
+	return data, label
 
-	num_testsample = h5_label_2D.shape[0]
-	print "**************************************"
-	print "Read %d test samples from %s" % (num_testsample, h5_file_path)
-	return h5_data_4D, h5_label_2D
-
-def cnn_predict(network_file_path, pretrained_model_path, h5_file_path, rn, pred_save_path=None):
-	#check if the file exists
-	if not os.path.isfile(pretrained_model_path and network_file_path and h5_file_path):
-		print("Missing the input file")
-
-	#initialize the caffe model
-	net = caffe.Net(network_file_path, pretrained_model_path, caffe.TEST)
-
-	#read in data
-	h5_data_4D, h5_label_2D = hdf5_read(h5_file_path)
-
+def rc_cnn_predict(net, data, rn, pred_save_path=None):
 	#make sure the batch size and the saved hdf5 size are equal 
-	assert(net.blobs['data'].data.shape == h5_data_4D.shape)
+	assert(net.blobs['data'].data.shape == data.shape)
 
 	#pre-assign the input blob
-	net.blobs['data'].data[...] = h5_data_4D	
+	net.blobs['data'].data[...] = data	
 	input_blob_buffer = net.blobs['data'].data[...]
+	
 	#recurrent forecast
-	pred_loc = np.array([])
+	pred = np.array([])
 	for rn_ind in range(0,rn):
 		#forward pass the network
 		net.forward()
 
 		#collect the prediction
-		loc = np.around(net.blobs['fc1'].data)
+		loc = net.blobs['fc1'].data
 
-		if not pred_loc.any():
-			pred_loc = loc
+		if not pred.any():
+			pred = loc
 		else:
-			pred_loc = np.hstack((pred_loc, loc))
+			pred = np.hstack((pred, loc))
 
 		#update the input blob for recurrent prediction
 		input_blob_prev = np.split(input_blob_buffer, [1], axis=3)[1]
@@ -101,14 +86,14 @@ def cnn_predict(network_file_path, pretrained_model_path, h5_file_path, rn, pred
 		input_blob = np.concatenate((input_blob_prev, input_blob_new), axis=3)
 		net.blobs['data'].data[...] = input_blob
 		input_blob_buffer = input_blob
-	
+
 	#save the predicted locations
 	if pred_save_path:
-		np.savetxt(pred_save_path, pred_loc, fmt='%d', delimiter=',')
-		print "Generated %s" %(pred_save_path)
+		np.savetxt(pred_save_path, pred, fmt='%d', delimiter=',')
+		print "Prediction result saved to: %s" %(pred_save_path)
 
 	#return the forecast loss
-	return rc_loss(pred_loc, h5_label_2D)
+	return pred
 
 def cnn_train(solver_file_path):
 	solver = caffe.get_solver(solver_file_path)
@@ -163,7 +148,12 @@ def cnn_netinfo(network_file_path, pretrained_model_path):
 		elif len(feat.shape) == 4:
 			vis_square(feat.transpose(0, 2, 3, 1), k)
 
-def cnn_main(recurrent_depth, test_file_path):
+def load_test_seg(testseg_file_path):
+	test_seg = sp.io.loadmat(testseg_file_path)['test_seg']
+	test_seg = np.array([np.asscalar(test_seg[0,0][0]), np.asscalar(test_seg[0,1][0])])
+	return test_seg
+
+def cnn_main(recurrent_depth, test_file_path, testseg_file_path):
 	#use CPU mode
 	caffe.set_mode_cpu()
 
@@ -176,17 +166,28 @@ def cnn_main(recurrent_depth, test_file_path):
 	network_file_path = './rc_forecast.prototxt'
 	#cnn_netinfo(network_file_path, pretrained_model_path)
 
-	#perform forecast
-	#pred_loc is Nx[x,y] (numpy array), where N is the number of test samples
+	#initialize the caffe model
+	net = caffe.Net(network_file_path, pretrained_model_path, caffe.TEST)
+	
+	#read in data
+	if not os.path.isfile(test_file_path):
+		print("Missing the input file")
+	data, label = hdf5_read(test_file_path)
+
+	#load test seg information
+	test_seg = load_test_seg(testseg_file_path)
+	#rc prediction
 	rn = 10 #set the recurrent number for prediction
 	save_pred_to = '/home/hongjiw/research/data/RC/clips/pred_loc.txt'
-	loss = cnn_predict(network_file_path, pretrained_model_path, test_file_path, rn, save_pred_to)
+	pred = rc_cnn_predict(net, data, rn, save_pred_to)
+	loss = rc_loss(pred, label, test_seg)
 	print "Forecast loss with %d rccurrent prediction is: %f" %(rn, loss)
 	
 	#analysis	
 	loss_stack = np.array([])
 	for rn in range(1, recurrent_depth):
-		loss = cnn_predict(network_file_path, pretrained_model_path, test_file_path, rn)
+		pred = rc_cnn_predict(net, data, rn)
+		loss = rc_loss(pred, label, test_seg)
 		loss_stack = np.hstack((loss_stack, loss))
 		
 	for rn in range(1, recurrent_depth):
@@ -194,18 +195,20 @@ def cnn_main(recurrent_depth, test_file_path):
 	
 	return loss_stack
 
-
-def static_main(recurrent_depth, test_file_path):
+def static_main(recurrent_depth, test_file_path, testseg_file_path):
 	if not os.path.isfile(test_file_path):
 		print("Missing the input file")
 	#read in test data
-	h5_data_4D, h5_label_2D = hdf5_read(test_file_path)
+	data, label = hdf5_read(test_file_path)
+
+	#load test seg information
+	test_seg = load_test_seg(testseg_file_path)
 
 	loss_stack = np.array([])
 	for rn in range(1, recurrent_depth):
-		pred_loc = np.reshape(h5_data_4D[:,:,:,h5_data_4D.shape[3]-1], h5_label_2D.shape)
-		pred_loc = np.tile(pred_loc, [1, rn])
-		loss = rc_loss(pred_loc, h5_label_2D)
+		pred = np.reshape(data[:,:,:,data.shape[3]-1], label.shape)
+		pred = np.tile(pred, [1, rn])
+		loss = rc_loss(pred, label, test_seg)
 		loss_stack = np.hstack((loss_stack, loss))
 
 	for rn in range(1, recurrent_depth):
@@ -213,38 +216,79 @@ def static_main(recurrent_depth, test_file_path):
 
 	return loss_stack
 
-def constv_main(recurrent_depth, test_file_path):
+def velocity_ave(data):
+	v_vec = np.array([]);
+	count = 0
+	for it in range(1, data.shape[3]):
+		if(not v_vec.any()):
+			v_vec = data[:,:,:,it] - data[:,:,:,it-1]
+		else:
+			v_vec = v_vec + data[:,:,:,it] - data[:,:,:,it-1]
+
+	v_vec = np.reshape(v_vec, [data.shape[0], data.shape[2]])
+	v_vec /= data.shape[3] - 1
+	return v_vec
+
+def constv_main(recurrent_depth, test_file_path, testseg_file_path):
 	if not os.path.isfile(test_file_path):
 		print("Missing the input file")
 	#read in test data
-	h5_data_4D, h5_label_2D = hdf5_read(test_file_path)
+	data, label = hdf5_read(test_file_path)
+
+	#load test seg information
+	test_seg = load_test_seg(testseg_file_path)
+
+	#get average velocity
+	v_ave = velocity_ave(data)
+	#
+	prev = np.reshape(data[:,:,:,data.shape[3]-1], label.shape)
+	pred = np.zeros(v_ave.shape)
+
+	loss_stack = np.array([])
+	for rn in range(1, recurrent_depth):
+		if(rn == 1):
+			pred = prev + v_ave
+		else:
+			pred = np.hstack((pred, pred[:,[pred.shape[1]-2, pred.shape[1]-1]] + v_ave))
+		loss = rc_loss(pred, label, test_seg)
+		loss_stack = np.hstack((loss_stack, loss))
+
+	for rn in range(1, recurrent_depth):
+		print "Loss with %d recurrent depth: %f" %(rn, loss_stack[rn-1])	
+
+	return loss_stack
 
 def consta_main(recurrent_depth, test_file_path):
 	if not os.path.isfile(test_file_path):
 		print("Missing the input file")
 	#read in test data
-	h5_data_4D, h5_label_2D = hdf5_read(test_file_path)
+	data, label = hdf5_read(test_file_path)
+
 
 
 if __name__ == '__main__':
-	recurrent_depth = 15;
+	recurrent_depth = 5;
 	test_file_path = '/home/hongjiw/research/data/RC/clips/test.h5'
+	testseg_file_path = '/home/hongjiw/research/data/RC/clips/test_seg.mat'
+	
 	#CNN MAIN FUNCTION
-	#cnn_loss = cnn_main(recurrent_depth, test_file_path)
-	#plt.plot(range(1,recurrent_depth), cnn_loss)
+	cnn_loss_stack = cnn_main(recurrent_depth, test_file_path, testseg_file_path)
+	plt.plot(range(1,recurrent_depth), cnn_loss_stack, label="cnn")
 
 	#BASELINES
-	#static_loss = static_main(recurrent_depth, test_file_path)
-	#plt.plot(range(1,recurrent_depth), static_loss)
+	static_loss_stack = static_main(recurrent_depth, test_file_path, testseg_file_path)
+	plt.plot(range(1,recurrent_depth), static_loss_stack, label="static movement")
 
-	constv_loss = constv_main(recurrent_depth, test_file_path)
-	consta_loss = consta_main(recurrent_depth, test_file_path)
+	constv_loss_stack = constv_main(recurrent_depth, test_file_path, testseg_file_path)
+	plt.plot(range(1,recurrent_depth), constv_loss_stack, label="constant velocity")
 
+	#consta_loss = consta_main(recurrent_depth, test_file_path)
 
 	#PLOT ALL MOTHODS
-	"""
+	
 	plt.ylabel('Loss = Euc dis / Num frames')
 	plt.xlabel('#Recurrent depth')
+	plt.legend()
 	plt.grid()
-	pltself.show()
-	"""
+	plt.show()
+	

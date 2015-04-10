@@ -46,6 +46,6 @@ for train_ind = 3 : size(data_list, 1)
     %return name and seg info
     seg_inst.seg = size(label,2);
     seg_inst.name = data_name;
-    names = [names {seg_inst}];
+    names = [names seg_inst];
 end
 end
