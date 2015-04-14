@@ -13,13 +13,13 @@ test_set_ind = 1;
 pred_index = 1;
 
 for data_ind = 3 : size(data_list, 1)
-    if(~data_list(data_ind).isdir || ~strcmp(data_list(data_ind).name, test_seg{test_set_ind}.name))
+    if(~data_list(data_ind).isdir || ~strcmp(data_list(data_ind).name, test_seg(test_set_ind).name))
         continue;
     end
     
     %get predicted label
-    pred_labels = pred_labels_test_all(pred_index:pred_index+test_seg{test_set_ind}.seg-1, :);
-    pred_index = pred_index + test_seg{test_set_ind}.seg;
+    pred_labels = pred_labels_test_all(pred_index:pred_index+test_seg(test_set_ind).seg-1, :);
+    pred_index = pred_index + test_seg(test_set_ind).seg;
     test_set_ind = test_set_ind + 1;
 
     %get demo set

@@ -42,10 +42,8 @@ def rc_loss(pred, label, test_seg):
 			for rn_ind in range(0, rn):
 				loss_buf = loss_buf + np.linalg.norm(label[offset+sample_ind+rn_ind,:] -
 					pred[offset+sample_ind, [rn_ind*2,rn_ind*2+1]])
-				#print label[sample_ind+rn_ind,:], pred[sample_ind,[rn_ind*2, rn_ind*2+1]]
 			loss_stack = np.hstack((loss_stack, loss_buf / rn))
-
-	#final loss
+		offset += seg_num;
 	return (np.sum(loss_stack) / loss_stack.shape[0])
 
 def hdf5_read(file_path):
@@ -56,44 +54,6 @@ def hdf5_read(file_path):
 	num_test = label.shape[0]
 	print "Read %d test samples from %s" % (num_test, file_path)
 	return data, label
-
-def rc_cnn_predict(net, data, rn, pred_save_path=None):
-	#make sure the batch size and the saved hdf5 size are equal 
-	assert(net.blobs['data'].data.shape == data.shape)
-
-	#pre-assign the input blob
-	net.blobs['data'].data[...] = data	
-	input_blob_buffer = net.blobs['data'].data[...]
-	
-	#recurrent forecast
-	pred = np.array([])
-	for rn_ind in range(0,rn):
-		#forward pass the network
-		net.forward()
-
-		#collect the prediction
-		loc = net.blobs['fc1'].data
-
-		if not pred.any():
-			pred = loc
-		else:
-			pred = np.hstack((pred, loc))
-
-		#update the input blob for recurrent prediction
-		input_blob_prev = np.split(input_blob_buffer, [1], axis=3)[1]
-		input_blob_new = np.split(input_blob_buffer, [1], axis=3)[0]
-		input_blob_new = np.reshape(loc, input_blob_new.shape)
-		input_blob = np.concatenate((input_blob_prev, input_blob_new), axis=3)
-		net.blobs['data'].data[...] = input_blob
-		input_blob_buffer = input_blob
-
-	#save the predicted locations
-	if pred_save_path:
-		np.savetxt(pred_save_path, pred, fmt='%d', delimiter=',')
-		print "Prediction result saved to: %s" %(pred_save_path)
-
-	#return the forecast loss
-	return pred
 
 def cnn_train(solver_file_path):
 	solver = caffe.get_solver(solver_file_path)
@@ -153,16 +113,116 @@ def load_test_seg(testseg_file_path):
 	test_seg = np.array([np.asscalar(test_seg[0,0][0]), np.asscalar(test_seg[0,1][0])])
 	return test_seg
 
-def cnn_main(recurrent_depth, test_file_path, testseg_file_path):
+def diff(data):
+	v_vec = np.array([]);
+	count = 0
+	for it in range(1, data.shape[3]):
+		if(not v_vec.any()):
+			v_vec = data[:,:,:,it] - data[:,:,:,it-1]
+			v_vec = np.reshape(v_vec, np.hstack((v_vec.shape, np.array([1]))))
+		else:
+			v_vec_new = data[:,:,:,it] - data[:,:,:,it-1]
+			v_vec_new = np.reshape(v_vec_new, np.hstack((v_vec_new.shape, np.array([1]))))
+			v_vec = np.concatenate((v_vec, v_vec_new), axis=3)
+	return v_vec
+
+def diff_ave(data):
+	v_vec = np.reshape(np.sum(diff(data), axis=3), [data.shape[0], data.shape[2]])
+	v_vec /= data.shape[3] - 1
+	return v_vec
+
+def rc_cnn_predict(net, data, rn, outlayer, pred_save_path=None):
+	#make sure the batch size and the saved hdf5 size are equal 
+	assert(net.blobs['data'].data.shape == data.shape)
+
+	#pre-assign the input blob
+	net.blobs['data'].data[...] = data	
+	input_blob_buffer = net.blobs['data'].data[...]
+	
+	#recurrent forecast
+	pred = np.array([])
+	for rn_ind in range(0,rn):
+		#forward pass the network
+		net.forward()
+
+		#collect the prediction
+		loc = net.blobs[outlayer].data
+
+		if not pred.any():
+			pred = np.copy(loc)
+		else:
+			pred = np.concatenate((pred, loc), axis=1)
+		#update the input blob for recurrent prediction
+		input_blob_prev = np.split(input_blob_buffer, [1], axis=3)[1]
+		input_blob_new = np.split(input_blob_buffer, [1], axis=3)[0]
+		input_blob_new = np.reshape(loc, input_blob_new.shape)
+		input_blob = np.concatenate((input_blob_prev, input_blob_new), axis=3)
+		net.blobs['data'].data[...] = np.copy(input_blob)
+		input_blob_buffer = np.copy(input_blob)
+
+	#save the predicted locations
+	if pred_save_path:
+		np.savetxt(pred_save_path, pred, fmt='%f', delimiter=',')
+		print "Prediction result saved to: %s" %(pred_save_path)
+
+	#return the forecast loss
+	return pred
+
+def cnn_main1(recurrent_depth, test_file_path, testseg_file_path):
+	#use CPU mode
+	caffe.set_mode_cpu()
+
+	#train the caffe
+	solver_file_path = './rc_solver_base.prototxt'
+	cnn_train(solver_file_path)
+
+	#show the network infomation
+	pretrained_model_path = '../model/base_iter_10000.caffemodel'
+	network_file_path = './rc_forecast_base.prototxt'
+	#cnn_netinfo(network_file_path, pretrained_model_path)
+
+	#initialize the caffe model
+	net = caffe.Net(network_file_path, pretrained_model_path, caffe.TEST)
+	
+	#read in data
+	if not os.path.isfile(test_file_path):
+		print("Missing the input file")
+	data, label = hdf5_read(test_file_path)
+
+	#load test seg information
+	test_seg = load_test_seg(testseg_file_path)
+
+	#rc prediction
+	rn = 10 #set the recurrent number for prediction
+	save_pred_to = '/home/hongjiw/research/data/RC/clips/pred_loc.txt'
+	pred = rc_cnn_predict(net, data, rn, 'fc1', save_pred_to)
+
+	#calculate loss
+	loss = rc_loss(pred, label, test_seg)
+	print "Forecast loss with %d rccurrent prediction is: %f" %(rn, loss)
+	
+	#analysis
+	loss_stack = np.array([])
+	
+	for rn in range(1, recurrent_depth):
+		pred = rc_cnn_predict(net, data, rn, 'fc1')
+		loss = rc_loss(pred, label, test_seg)
+		loss_stack = np.hstack((loss_stack, np.copy(loss)))
+
+	for rn in range(1, recurrent_depth):
+		print "Loss with %d recurrent depth: %f" %(rn, loss_stack[rn-1])	
+	return loss_stack
+
+def cnn_main2(recurrent_depth, test_file_path, testseg_file_path):
 	#use CPU mode
 	caffe.set_mode_cpu()
 
 	#train the caffe
 	solver_file_path = './rc_solver.prototxt'
-	#cnn_train(solver_file_path)
+	cnn_train(solver_file_path)
 
 	#show the network infomation
-	pretrained_model_path = '../model/_iter_10000.caffemodel'
+	pretrained_model_path = '../model/trial_iter_10000.caffemodel'
 	network_file_path = './rc_forecast.prototxt'
 	#cnn_netinfo(network_file_path, pretrained_model_path)
 
@@ -176,23 +236,26 @@ def cnn_main(recurrent_depth, test_file_path, testseg_file_path):
 
 	#load test seg information
 	test_seg = load_test_seg(testseg_file_path)
+
 	#rc prediction
 	rn = 10 #set the recurrent number for prediction
 	save_pred_to = '/home/hongjiw/research/data/RC/clips/pred_loc.txt'
-	pred = rc_cnn_predict(net, data, rn, save_pred_to)
+	pred = rc_cnn_predict(net, data, rn, 'ip2', save_pred_to)
+
+	#calculate loss
 	loss = rc_loss(pred, label, test_seg)
 	print "Forecast loss with %d rccurrent prediction is: %f" %(rn, loss)
 	
-	#analysis	
+	#analysis
 	loss_stack = np.array([])
+	
 	for rn in range(1, recurrent_depth):
-		pred = rc_cnn_predict(net, data, rn)
+		pred = rc_cnn_predict(net, data, rn, 'ip1')
 		loss = rc_loss(pred, label, test_seg)
-		loss_stack = np.hstack((loss_stack, loss))
-		
+		loss_stack = np.hstack((loss_stack, np.copy(loss)))
+
 	for rn in range(1, recurrent_depth):
 		print "Loss with %d recurrent depth: %f" %(rn, loss_stack[rn-1])	
-	
 	return loss_stack
 
 def static_main(recurrent_depth, test_file_path, testseg_file_path):
@@ -209,25 +272,12 @@ def static_main(recurrent_depth, test_file_path, testseg_file_path):
 		pred = np.reshape(data[:,:,:,data.shape[3]-1], label.shape)
 		pred = np.tile(pred, [1, rn])
 		loss = rc_loss(pred, label, test_seg)
-		loss_stack = np.hstack((loss_stack, loss))
+		loss_stack = np.hstack((loss_stack, np.copy(loss)))
 
 	for rn in range(1, recurrent_depth):
 		print "Loss with %d recurrent depth: %f" %(rn, loss_stack[rn-1])	
 
 	return loss_stack
-
-def velocity_ave(data):
-	v_vec = np.array([]);
-	count = 0
-	for it in range(1, data.shape[3]):
-		if(not v_vec.any()):
-			v_vec = data[:,:,:,it] - data[:,:,:,it-1]
-		else:
-			v_vec = v_vec + data[:,:,:,it] - data[:,:,:,it-1]
-
-	v_vec = np.reshape(v_vec, [data.shape[0], data.shape[2]])
-	v_vec /= data.shape[3] - 1
-	return v_vec
 
 def constv_main(recurrent_depth, test_file_path, testseg_file_path):
 	if not os.path.isfile(test_file_path):
@@ -239,8 +289,8 @@ def constv_main(recurrent_depth, test_file_path, testseg_file_path):
 	test_seg = load_test_seg(testseg_file_path)
 
 	#get average velocity
-	v_ave = velocity_ave(data)
-	#
+	v_ave = diff_ave(data)
+	
 	prev = np.reshape(data[:,:,:,data.shape[3]-1], label.shape)
 	pred = np.zeros(v_ave.shape)
 
@@ -264,31 +314,75 @@ def consta_main(recurrent_depth, test_file_path):
 	#read in test data
 	data, label = hdf5_read(test_file_path)
 
+	#load test seg information
+	test_seg = load_test_seg(testseg_file_path)
 
+	#make sure have enough dimention for acceleration calculation
+	assert(data.shape[3] > 2)
+
+	#get the last three frames
+	data = data[:,:,:,range(data.shape[3]-3, data.shape[3])]	
+	
+	#get the velocity
+	v_vec = diff(data)
+
+	#get the last acceleration
+	a_vec = diff(v_vec)
+	a_vec = np.reshape(a_vec, [data.shape[0], data.shape[2]])
+
+	v_last = np.reshape(v_vec[:,:,:,v_vec.shape[3]-1], label.shape)
+	prev = np.reshape(data[:,:,:,data.shape[3]-1], label.shape)
+	pred = np.zeros(v_last.shape)
+
+	loss_stack = np.array([])
+	for rn in range(1, recurrent_depth):
+		if(rn == 1):
+			pred = prev + v_last + a_vec
+		else:
+			pred = np.hstack((pred, pred[:,[pred.shape[1]-2, pred.shape[1]-1]] + v_last + rn*a_vec))
+		loss = rc_loss(pred, label, test_seg)
+		loss_stack = np.hstack((loss_stack, loss))
+
+	for rn in range(1, recurrent_depth):
+		print "Loss with %d recurrent depth: %f" %(rn, loss_stack[rn-1])	
+
+	return loss_stack
 
 if __name__ == '__main__':
-	recurrent_depth = 5;
+	recurrent_depth = 10;
 	test_file_path = '/home/hongjiw/research/data/RC/clips/test.h5'
 	testseg_file_path = '/home/hongjiw/research/data/RC/clips/test_seg.mat'
 	
 	#CNN MAIN FUNCTION
-	cnn_loss_stack = cnn_main(recurrent_depth, test_file_path, testseg_file_path)
-	plt.plot(range(1,recurrent_depth), cnn_loss_stack, label="cnn")
+	cnn_loss_stack = cnn_main1(recurrent_depth, test_file_path, testseg_file_path)
+	plt.plot(range(1,recurrent_depth), cnn_loss_stack, label="cnn1")
+
+	cnn_loss_stack = cnn_main2(recurrent_depth, test_file_path, testseg_file_path)
+	plt.plot(range(1,recurrent_depth), cnn_loss_stack, label="cnn2")
 
 	#BASELINES
+
 	static_loss_stack = static_main(recurrent_depth, test_file_path, testseg_file_path)
 	plt.plot(range(1,recurrent_depth), static_loss_stack, label="static movement")
-
+	
+	"""
 	constv_loss_stack = constv_main(recurrent_depth, test_file_path, testseg_file_path)
 	plt.plot(range(1,recurrent_depth), constv_loss_stack, label="constant velocity")
 
-	#consta_loss = consta_main(recurrent_depth, test_file_path)
+	consta_loss_stack = consta_main(recurrent_depth, test_file_path)
+	plt.plot(range(1,recurrent_depth), consta_loss_stack, label="constant acceleration")
+	"""
 
 	#PLOT ALL MOTHODS
-	
 	plt.ylabel('Loss = Euc dis / Num frames')
 	plt.xlabel('#Recurrent depth')
-	plt.legend()
+	plt.legend(loc=2)
 	plt.grid()
 	plt.show()
+
+	
+	
+
+	
+
 	
