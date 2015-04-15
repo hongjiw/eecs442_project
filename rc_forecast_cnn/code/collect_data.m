@@ -1,7 +1,8 @@
-function [train, test] = collect_data(data_path, params, div_list)
+function [train, trainval, test] = collect_data(data_path, params, div_list)
 data_list = dir(data_path);
 train_data_all = []; train_label_all = [];
 test_data_all = []; test_label_all = [];
+trainval_data_all = []; trainval_label_all = [];
 
 %iterate through all the training sets
 for train_ind = 3 : size(data_list, 1)
@@ -12,9 +13,6 @@ for train_ind = 3 : size(data_list, 1)
     data_name = data_list(train_ind).name;
     data_dir = [data_path, '/', data_name];
 
-    %print progress
-    fprintf('Collecting motion data: %s\n', data_name);
-    
     %read the tracker location file
     tracker_loc_file = [data_dir, '/', 'tracker_loc.txt'];
     fid = fopen(tracker_loc_file);
@@ -23,7 +21,6 @@ for train_ind = 3 : size(data_list, 1)
         
     %get the number of frames
     num_frames = size(tracker_loc, 1);
-    
 
     %extract motion features (x, y)
     data = []; label = [];
@@ -44,19 +41,24 @@ for train_ind = 3 : size(data_list, 1)
     end
     
     %print progress
-    fprintf('Collected %d data from %s\n', size(label,2), data_name);
-    if sum(strcmp(data_name, div_list.train_list), 1) == 1
+    fprintf('Collected %d motion data from %s\n', size(label,2), data_name);
+   if sum(strcmp(data_name, div_list.train_list), 1) == 1
         train_data_all = [train_data_all data];
         train_label_all = [train_label_all label];
-    end
-    
-    if sum(strcmp(data_name, div_list.test_list), 1) == 1
+    elseif sum(strcmp(data_name, div_list.test_list), 1) == 1
         test_data_all = [test_data_all data];
         test_label_all = [test_label_all label];
+    elseif sum(strcmp(data_name, div_list.trainval_list), 1) == 1
+        trainval_data_all = [trainval_data_all data];
+        trainval_label_all = [trainval_label_all label];
+    else
+        assert(0);
     end
 end
 train.data = train_data_all;
 train.label = train_label_all;
+trainval.data = trainval_data_all;
+trainval.label = trainval_label_all;
 test.data = test_data_all;
 test.label = test_label_all;
 end

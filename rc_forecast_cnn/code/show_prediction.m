@@ -1,4 +1,4 @@
-function show_prediction(data_path, test_seg, bucket_size)
+function show_prediction(data_path, params, div_list)
 %get the demo list
 data_list = dir(data_path);
 
@@ -6,34 +6,31 @@ data_list = dir(data_path);
 %get demo label
 pred_loc_file = [data_path, '/', 'pred_loc.txt'];
 pred_labels_test_all = load(pred_loc_file);
-recurrent_size = size(pred_labels_test_all, 2) / 2;
+assert(size(pred_labels_test_all, 2) / 2 == params.rec_size);
 
 %iterate through all the demo sets
 test_set_ind = 1;
 pred_index = 1;
 
-for data_ind = 3 : size(data_list, 1)
-    if(~data_list(data_ind).isdir || ~strcmp(data_list(data_ind).name, test_seg(test_set_ind).name))
+for data_ind = 3 : size(data_list, 1) 
+    if(~data_list(data_ind).isdir || ~sum(strcmp(data_list(data_ind).name, div_list.test_list), 1) == 1)
         continue;
     end
     
-    %get predicted label
-    pred_labels = pred_labels_test_all(pred_index:pred_index+test_seg(test_set_ind).seg-1, :);
-    pred_index = pred_index + test_seg(test_set_ind).seg;
-    test_set_ind = test_set_ind + 1;
-
     %get demo set
     data_dir = [data_path, '/', data_list(data_ind).name];
     img_dir = [data_dir, '/', 'imgs'];
     
-    %get gt label
+    %get predicted location
+    seg_offset = size(dir(img_dir), 1) - params.bucket_size - 2 - params.rec_size; %two is . and ..
+    pred_loc = pred_labels_test_all(pred_index:pred_index+seg_offset-1, :);
+    pred_index = pred_index +seg_offset;
+    test_set_ind = test_set_ind + 1;
+    %get tracker location
     tracker_loc_file = [data_dir, '/', 'tracker_loc.txt'];
     fid = fopen(tracker_loc_file);
-    labels = textscan(fid, '%d,%d,%d,%d');
-    labels = cell2mat(labels);
-    
-    %get number of images
-    num_imgs = size(labels, 1);
+    tracker_loc = textscan(fid, '%d,%d,%d,%d');
+    tracker_loc = cell2mat(tracker_loc);
     
     %get first frame num
     img_list = dir(img_dir);
@@ -42,30 +39,52 @@ for data_ind = 3 : size(data_list, 1)
     %print progress
     fprintf('Demo %s\n', data_dir);
     
+    %get number of images
+    num_imgs = size(img_list, 1) - 2;
+    assert(num_imgs == size(tracker_loc, 1));
+    
     %show frames
-    for img_ind = 1 : num_imgs-1
+    for img_ind = 1 : num_imgs-params.rec_size
         %load the window
         img_ind_str = sprintf('%05d', img_ind+ind_offset);
         img_name = sprintf('img%s.png', img_ind_str);
         img = imread([img_dir, '/', img_name]);
         
-        %get tracker loc
-        tracker_loc_inst = labels(img_ind,:);
-      
         %show the image
         figure(1); imshow(img, []);
         
         %plot prediction on previous image as green
-        if img_ind >= bucket_size
-            for recur_ind = 1 : recurrent_size
-                bbox_pred = int32([pred_labels(img_ind-bucket_size+1, 2*recur_ind-1:2*recur_ind) 0 0])...
-                    + labels(img_ind-bucket_size+recur_ind,:);
+        %{
+        if img_ind >= params.bucket_size+1
+            for recur_ind = 1 : params.rec_size
+                bbox_pred = int32([pred_loc(img_ind-params.bucket_size, 2*recur_ind-1:2*recur_ind) 0 0])...
+                    + tracker_loc(img_ind-params.bucket_size,:);
                 rectangle('position',bbox_pred, 'EdgeColor', 'g');
             end
         end
+        %}
+        m = 5;
+        assert(m <= params.rec_size);
+        if img_ind >= params.bucket_size+1 + m
+            %show next 5th frame
+            bbox_pred = int32([pred_loc(img_ind-params.bucket_size, 2*m-1:2*m) 0 0])...
+                + tracker_loc(img_ind-params.bucket_size,:);
+            rectangle('position',bbox_pred, 'EdgeColor', 'g');
+            %show prev 5th pred
+            bbox_pred = int32([pred_loc(img_ind-m-params.bucket_size, 2*m-1:2*m) 0 0])...
+                + tracker_loc(img_ind-m-params.bucket_size,:);
+            rectangle('position',bbox_pred, 'EdgeColor', 'y');
+        end
+        
         %plot tracker on previous image as red
+        tracker_loc_inst = tracker_loc(img_ind,:);
         rectangle('position',tracker_loc_inst, 'EdgeColor', 'r', 'LineWidth', 1);
-        pause(0.1);
+        
+        if img_ind >= params.bucket_size+1 + m
+            pause(0.2);
+        else
+            pause(0.1);
+        end
     end
     
     %go to the next demo data

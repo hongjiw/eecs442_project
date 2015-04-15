@@ -1,1 +1,1 @@
-/home/hongjiw/research/data/RC/clips/train_rec_10.h5
+/home/hongjiw/research/data/RC/clips/train_OF_rec_1.h5
