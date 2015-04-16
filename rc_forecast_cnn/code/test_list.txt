@@ -1,1 +1,1 @@
-/home/hongjiw/research/data/RC/clips/trainval_OF_rec_1.h5
+/home/hongjiw/research/data/RC/clips/test_motion_rec_1.h5

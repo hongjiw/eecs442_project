@@ -1,7 +1,7 @@
-function show_prediction(data_path, params, div_list)
+function show_prediction(data_path, params, test_list, demo_list, pos)
 %get the demo list
 data_list = dir(data_path);
-
+while (1)
 %load predicted location
 %get demo label
 pred_loc_file = [data_path, '/', 'pred_loc.txt'];
@@ -13,7 +13,7 @@ test_set_ind = 1;
 pred_index = 1;
 
 for data_ind = 3 : size(data_list, 1) 
-    if(~data_list(data_ind).isdir || ~sum(strcmp(data_list(data_ind).name, div_list.test_list), 1) == 1)
+    if(~data_list(data_ind).isdir || ~sum(strcmp(data_list(data_ind).name, test_list), 1) == 1)
         continue;
     end
     
@@ -42,8 +42,14 @@ for data_ind = 3 : size(data_list, 1)
     %get number of images
     num_imgs = size(img_list, 1) - 2;
     assert(num_imgs == size(tracker_loc, 1));
-    
+    close all;
+    fh = figure('Position', pos); %left bottom width height
     %show frames
+    
+    % label DEMO
+    if (~sum(strcmp(data_list(data_ind).name, demo_list), 1) == 1)
+        continue
+    end
     for img_ind = 1 : num_imgs-params.rec_size
         %load the window
         img_ind_str = sprintf('%05d', img_ind+ind_offset);
@@ -51,10 +57,11 @@ for data_ind = 3 : size(data_list, 1)
         img = imread([img_dir, '/', img_name]);
         
         %show the image
-        figure(1); imshow(img, []);
+        figure(fh); 
+        imshow(img);
         
         %plot prediction on previous image as green
-        %{
+    %{
         if img_ind >= params.bucket_size+1
             for recur_ind = 1 : params.rec_size
                 bbox_pred = int32([pred_loc(img_ind-params.bucket_size, 2*recur_ind-1:2*recur_ind) 0 0])...
@@ -62,8 +69,8 @@ for data_ind = 3 : size(data_list, 1)
                 rectangle('position',bbox_pred, 'EdgeColor', 'g');
             end
         end
-        %}
-        m = 5;
+%}
+        m = 10;
         assert(m <= params.rec_size);
         if img_ind >= params.bucket_size+1 + m
             %show next 5th frame
@@ -81,14 +88,15 @@ for data_ind = 3 : size(data_list, 1)
         rectangle('position',tracker_loc_inst, 'EdgeColor', 'r', 'LineWidth', 1);
         
         if img_ind >= params.bucket_size+1 + m
-            pause(0.2);
+            pause(0.01);
         else
-            pause(0.1);
+            pause(0.01);
         end
     end
     
     %go to the next demo data
-    fprintf('Hit any key to continue to next demo set\n');
-    pause;
+    %fprintf('Hit any key to continue to next demo set\n');
+    %pause;
+end
 end
 end

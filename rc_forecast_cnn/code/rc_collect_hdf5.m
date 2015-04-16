@@ -42,7 +42,7 @@ fprintf('Finally collected %d testing data (%s) samples from %s\n', size(test_la
 %write to hdf5
 startloc=struct('data',[1,1,1,1], 'label', [1,1]);
 store2hdf5(path.h5_save_path.train, train_data_hdf5, train_label_hdf5, true, startloc, size(train_label_hdf5,2)); 
-store2hdf5(path.h5_save_path.trainval, trainval_data_hdf5, trainval_label_hdf5, true, startloc, size(trainval_label_hdf5,2)); 
+%store2hdf5(path.h5_save_path.trainval, trainval_data_hdf5, trainval_label_hdf5, true, startloc, size(trainval_label_hdf5,2)); 
 store2hdf5(path.h5_save_path.test, test_data_hdf5, test_label_hdf5, true, startloc, size(test_label_hdf5,2)); 
 
 %save the list info

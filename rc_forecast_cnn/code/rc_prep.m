@@ -16,7 +16,7 @@ vl_setup demo
 
 %params
 bucket_size = 25;
-rec_size = 10;
+rec_size = 1;
 
 %% Collect Data 
 %motion data
@@ -56,6 +56,6 @@ params.bucket_size = bucket_size;
 params.rec_size = rec_size;
 
 %collect data
-params.mode = 'OF'; %set true for Optical Flow mode
+params.mode = 'motion'; %set true for Optical Flow mode
 rc_collect_hdf5(params, path, div_list);
 

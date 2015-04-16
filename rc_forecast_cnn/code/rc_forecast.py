@@ -299,11 +299,11 @@ if __name__ == '__main__':
 	
 	rc_path['save_pred'] = '/home/hongjiw/research/data/RC/clips/pred_loc.txt'
 	rc_path['test_file'] = '/home/hongjiw/research/data/RC/clips/test_motion_rec_10.h5'
-	params['save'] = False
-	params['retrain'] = False
+	params['save'] = True
+	params['retrain'] = True
 	params['fc_depth'] = 10
 	params['visual'] = False
-	params['gpu'] = True
+	params['gpu'] = False
 
 	#BASELINES
 	#static movement
@@ -321,7 +321,6 @@ if __name__ == '__main__':
 	rc_path['solver'] = './rc_solver_rec_1.prototxt'
 	rc_path['model'] = '../model/rec_1_cfl_iter_10000.caffemodel'
 	rc_path['network'] = './rc_forecast_rec_1.prototxt'
-	#params['retrain'] = True
 	cnn_loss_stack = cnn_main(params, rc_path)
 	plt.plot(range(1, params['fc_depth']+1), cnn_loss_stack, label="cnn_rec_1_cfl")
 
@@ -331,10 +330,10 @@ if __name__ == '__main__':
 	rc_path['network'] = './rc_forecast_rec_10.prototxt'
 	
 	params['fc_depth'] = 1
-	cnn_loss_stack = cnn_main(params, rc_path)
-	params['fc_depth'] = 10
+	#cnn_loss_stack = cnn_main(params, rc_path)
+	#params['fc_depth'] = 10
 
-	plt.plot(params['fc_depth'], cnn_loss_stack, 'ro', label="cnn_rec_10_cfl")
+	#plt.plot(params['fc_depth'], cnn_loss_stack, 'ro', label="cnn_rec_10_cfl")
 
 	#CNN rec 1 forecast (OF)
 	rc_path['test_file'] = '/home/hongjiw/research/data/RC/clips/test_OF_rec_10.h5'
@@ -342,8 +341,8 @@ if __name__ == '__main__':
 	rc_path['model'] = '../model/rec_1_OF_cfl_iter_10000.caffemodel'
 	rc_path['network'] = './rc_forecast_rec_1_OF.prototxt'
 
-	params['retrain'] = True
-	cnn_loss_stack = cnn_main(params, rc_path)
+	params['retrain'] = False
+	#cnn_loss_stack = cnn_main(params, rc_path)
 
 	#rec 10 forecast (OF)
 	rc_path['solver'] = './rc_solver_rec_10_OF.prototxt'

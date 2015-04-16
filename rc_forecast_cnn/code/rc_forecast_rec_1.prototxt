@@ -1,6 +1,6 @@
 name: "RC_forecast"
 input: "data"
-input_dim: 309
+input_dim: 382
 input_dim: 1
 input_dim: 2
 input_dim: 25
