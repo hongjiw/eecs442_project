@@ -4,9 +4,9 @@ data_list = dir(data_path);
 while (1)
 %load predicted location
 %get demo label
-pred_loc_file = [data_path, '/', 'pred_loc.txt'];
+pred_loc_file = [data_path, '/', params.pred_loc_name];
 pred_labels_test_all = load(pred_loc_file);
-assert(size(pred_labels_test_all, 2) / 2 == params.rec_size);
+assert(size(pred_labels_test_all, 2) / 2 == params.forecast_size);
 
 %iterate through all the demo sets
 test_set_ind = 1;
@@ -22,15 +22,22 @@ for data_ind = 3 : size(data_list, 1)
     img_dir = [data_dir, '/', 'imgs'];
     
     %get predicted location
-    seg_offset = size(dir(img_dir), 1) - params.bucket_size - 2 - params.rec_size; %two is . and ..
+    seg_offset = size(dir(img_dir), 1) - params.bucket_size - 2 - params.forecast_size; %two is . and ..
     pred_loc = pred_labels_test_all(pred_index:pred_index+seg_offset-1, :);
+
     pred_index = pred_index +seg_offset;
     test_set_ind = test_set_ind + 1;
     %get tracker location
-    tracker_loc_file = [data_dir, '/', 'tracker_loc.txt'];
+    tracker_loc_file = [data_dir, '/', params.tracker_loc_name];
     fid = fopen(tracker_loc_file);
     tracker_loc = textscan(fid, '%d,%d,%d,%d');
     tracker_loc = cell2mat(tracker_loc);
+    
+    %unnormalize the location so we can visualize it
+    %since each data set share a same trakcer box, we simplly multiply them
+    %all by the size of the box
+    %unnormalizer = tracker_loc(1,3:4);
+    %pred_loc = pred_loc .* double(repmat(unnormalizer, size(pred_loc, 1), size(pred_loc, 2) / 2));
     
     %get first frame num
     img_list = dir(img_dir);
@@ -50,7 +57,8 @@ for data_ind = 3 : size(data_list, 1)
     if (~sum(strcmp(data_list(data_ind).name, demo_list), 1) == 1)
         continue
     end
-    for img_ind = 1 : num_imgs-params.rec_size
+    
+    for img_ind = 1 : num_imgs-params.forecast_size
         %load the window
         img_ind_str = sprintf('%05d', img_ind+ind_offset);
         img_name = sprintf('img%s.png', img_ind_str);
@@ -63,7 +71,7 @@ for data_ind = 3 : size(data_list, 1)
         %plot prediction on previous image as green
     %{
         if img_ind >= params.bucket_size+1
-            for recur_ind = 1 : params.rec_size
+            for recur_ind = 1 : params.forecast_size
                 bbox_pred = int32([pred_loc(img_ind-params.bucket_size, 2*recur_ind-1:2*recur_ind) 0 0])...
                     + tracker_loc(img_ind-params.bucket_size,:);
                 rectangle('position',bbox_pred, 'EdgeColor', 'g');
@@ -71,7 +79,7 @@ for data_ind = 3 : size(data_list, 1)
         end
 %}
         m = 10;
-        assert(m <= params.rec_size);
+        assert(m <= params.forecast_size);
         if img_ind >= params.bucket_size+1 + m
             %show next 5th frame
             bbox_pred = int32([pred_loc(img_ind-params.bucket_size, 2*m-1:2*m) 0 0])...
@@ -93,10 +101,6 @@ for data_ind = 3 : size(data_list, 1)
             pause(0.01);
         end
     end
-    
-    %go to the next demo data
-    %fprintf('Hit any key to continue to next demo set\n');
-    %pause;
 end
 end
 end

@@ -1,4 +1,4 @@
-function [train, trainval, test] = collect_data(data_path, params, div_list)
+function [train, trainval, test] = collect_data_MO(data_path, params, div_list)
 data_list = dir(data_path);
 train_data_all = []; train_label_all = [];
 test_data_all = []; test_label_all = [];
@@ -14,7 +14,7 @@ for train_ind = 3 : size(data_list, 1)
     data_dir = [data_path, '/', data_name];
 
     %read the tracker location file
-    tracker_loc_file = [data_dir, '/', 'tracker_loc.txt'];
+    tracker_loc_file = [data_dir, '/', params.tracker_loc_name];
     fid = fopen(tracker_loc_file);
     tracker_loc = textscan(fid, '%d,%d,%d,%d');
     tracker_loc = cell2mat(tracker_loc);
@@ -25,23 +25,30 @@ for train_ind = 3 : size(data_list, 1)
     %extract motion features (x, y)
     data = []; label = [];
     
-    for frame_ind = params.bucket_size+1 : num_frames - params.rec_size
+    for frame_ind = params.bucket_size+1 : num_frames - params.forecast_size
         data_inst = tracker_loc(frame_ind-params.bucket_size : frame_ind, 1:2);
+        normalizer =  double(tracker_loc(frame_ind-params.bucket_size, 3:4));
+        
         %append label
         label_inst = [];
-        for rec_ind = 1 : params.rec_size
-            label_inst = [label_inst ; (tracker_loc(frame_ind+rec_ind,1:2) - data_inst(1,:))'];
+        for forecast_ind = 1 : params.forecast_size
+            label_tmp = double(tracker_loc(frame_ind+forecast_ind,1:2) - data_inst(1,:))';
+            %normalize
+            label_tmp = label_tmp ./ normalizer';
+            label_inst = [label_inst ; label_tmp];
         end
         label = [label label_inst];
         
         %append data
         data_inst = data_inst - repmat(data_inst(1,:), size(data_inst, 1), 1);
         data_inst = data_inst(2:end,:);
-        data = [data data_inst];
+        %normalize
+        data_inst = double(data_inst) ./ repmat(normalizer, size(data_inst, 1), 1);
+        data = [data data_inst(:)];
     end
     
     %print progress
-    fprintf('Collected %d motion data from %s\n', size(label,2), data_name);
+    fprintf('Collected %d %s data from %s\n', size(label,2), params.mode, data_name);
    if sum(strcmp(data_name, div_list.train_list), 1) == 1
         train_data_all = [train_data_all data];
         train_label_all = [train_label_all label];

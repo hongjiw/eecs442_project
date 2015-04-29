@@ -2,7 +2,6 @@ root = '/home/hongjiw';
 
 %% Add dependency
 %add matcaffe
-addpath([root, '/research/library/caffe/matlab/caffe']);
 addpath([root, '/research/library/caffe/matlab/caffe/hdf5creation']);
 
 %add OF (optical flow) path
@@ -10,13 +9,9 @@ addpath('/home/hongjiw/research/library/eccv2004Matlab');
 
 %setup VLfeat
 VLfeat_path = '/home/hongjiw/research/library/vlfeat-0.9.20';
-run([VLfeat_path '/toolbox/vl_setup'])
+run([VLfeat_path '/toolbox/vl_setup']);
 vl_version verbose
 vl_setup demo
-
-%params
-bucket_size = 25;
-rec_size = 1;
 
 %% Collect Data 
 %motion data
@@ -27,7 +22,7 @@ train_list_file_path = [data_path, '/train_list.txt'];
 trainval_list_file_path = [data_path, '/trainval_list.txt'];
 test_list_file_path = [data_path, '/test_list.txt'];
 
-%sanity check
+%check if file exists
 assert(exist(data_path, 'dir') && exist(dev_path, 'dir'));
 assert(exist(train_list_file_path, 'file') && exist(test_list_file_path, 'file') && exist(trainval_list_file_path, 'file'));
 
@@ -52,10 +47,16 @@ div_list.trainval_list = trainval_list;
 path.data_path = data_path;
 path.dev_path = dev_path;
 
-params.bucket_size = bucket_size;
-params.rec_size = rec_size;
+params.tracker_loc_name = 'tracker_loc.txt';
+
+%set true for Optical Flow mode
+params.mode = 'motion'; 
 
 %collect data
-params.mode = 'motion'; %set true for Optical Flow mode
-rc_collect_hdf5(params, path, div_list);
-
+for bucket_size = 25 : 25 : 75
+    for forecast_size = 25 : 25 : 75
+        params.bucket_size = bucket_size;
+        params.forecast_size = forecast_size;
+        rc_collect_hdf5(params, path, div_list);
+    end
+end

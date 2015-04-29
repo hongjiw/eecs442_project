@@ -36,7 +36,7 @@ for train_ind = 3 : size(data_list, 1)
     %go through all images and extract optical flow
     data = []; label = [];
 
-    for frame_ind = 2 : num_imgs-params.rec_size
+    for frame_ind = 2 : num_imgs-params.forecast_size
         
         %load the window
         img_ind_str_cur = sprintf('%05d', frame_ind+ind_offset);
@@ -83,7 +83,7 @@ for train_ind = 3 : size(data_list, 1)
             
             %append label
             label_inst = [];
-            for rec_ind = 1 : params.rec_size
+            for rec_ind = 1 : params.forecast_size
                 label_inst = [label_inst; (tracker_loc(frame_ind+rec_ind,1:2) -  ...
                     tracker_loc(frame_ind-params.bucket_size, 1:2))'];
             end
