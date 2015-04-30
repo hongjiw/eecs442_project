@@ -7,8 +7,7 @@ def rc_loss(pred, label):
 	#print label.shape
 	assert(not pred.shape[1] % 2)
 	assert(not label.shape[1] % 2)
-	assert(pred.shape[0] == label.shape[0])
-	assert(pred.shape[1] <= label.shape[1])
+	assert(pred.shape == label.shape)
 
 	#rn: recurrent prediction number
 	rn = pred.shape[1] / 2
@@ -22,4 +21,5 @@ def rc_loss(pred, label):
 			loss_buf = loss_buf + np.linalg.norm(label[sample_ind, [rn_ind*2,rn_ind*2+1]] -
 				pred[sample_ind, [rn_ind*2,rn_ind*2+1]])
 		loss_stack = np.hstack((loss_stack, loss_buf / rn))
+
 	return (np.sum(loss_stack) / loss_stack.shape[0])

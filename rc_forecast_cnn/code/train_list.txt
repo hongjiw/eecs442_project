@@ -1,1 +1,1 @@
-/home/hongjiw/research/data/RC/clips/train_b_75_f_75_MO.h5
+/home/hongjiw/research/data/RC/clips/train_b_25_f_50_ALEX.h5

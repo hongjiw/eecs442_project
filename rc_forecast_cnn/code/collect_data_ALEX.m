@@ -1,4 +1,4 @@
-function [train, trainval, test] = collect_data_MO(data_path, params, div_list)
+function [train, trainval, test] = collect_data_ALEX(data_path, params, div_list)
 data_list = dir(data_path);
 train_data_all = []; train_label_all = [];
 test_data_all = []; test_label_all = [];
@@ -25,6 +25,14 @@ for train_ind = 3 : size(data_list, 1)
     %extract motion features (x, y)
     data = []; label = [];
     
+    %load alex's mat feature
+    alex_feature = load([data_dir, '/alex_feature.mat']);
+    alex_feature = alex_feature.alex_feature;
+    
+    %make sure alex's feature is in good shape
+    assert(size(alex_feature, 1) == size(tracker_loc, 1))
+    
+    %collect the feature under the current directory
     for frame_ind = params.bucket_size+1 : num_frames - params.forecast_size
         data_inst = tracker_loc(frame_ind-params.bucket_size : frame_ind, 1:2);
         normalizer =  double(tracker_loc(frame_ind-params.bucket_size, 3:4));
@@ -44,9 +52,16 @@ for train_ind = 3 : size(data_list, 1)
         data_inst = data_inst(2:end,:);
         %normalize
         data_inst = double(data_inst) ./ repmat(normalizer, size(data_inst, 1), 1);
+        
+        %add alex's feature (we try using alex's feature first without
+        %appending the motion feature)
+        alex_inst = alex_feature(frame_ind-params.bucket_size+1 : frame_ind, :);
+        data_inst = [alex_inst data_inst];
+      
+        %append to the total data
         data = [data data_inst(:)];
     end
-    
+   
     %print progress
     fprintf('Collected %d %s data from %s\n', size(label,2), params.mode, data_name);
    if sum(strcmp(data_name, div_list.train_list), 1) == 1

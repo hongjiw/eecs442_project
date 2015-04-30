@@ -1,5 +1,5 @@
 # The train/test net protocol buffer definition
-net: "%(dev_path)s/rc_train_%(mode)s.prototxt"
+net: "/home/hongjiw/research/eecs442_project/rc_forecast_cnn/code/rc_train_ALEX.prototxt"
 # test_iter specifies how many forward passes the test should carry out.
 # In the case of MNIST, we have test batch size 100 and 100 test iterations,
 # covering the full 10,000 testing images.
@@ -7,20 +7,20 @@ test_iter: 100
 # Carry out testing every 500 training iterations.
 test_interval: 1000
 # The base learning rate, momentum and the weight decay of the network.
-base_lr: %(lr)s
+base_lr: 0.0001
 momentum: 0.9
-weight_decay: 0.0005
+weight_decay: 0.00005
 # The learning rate policy
 lr_policy: "step"
-gamma: 0.9
+gamma: 0.5	
 power: 0.75
 stepsize: 500
 # Display every 100 iterations
 display: 100
 # The maximum number of iterations
-max_iter: 10000
+max_iter: 5000
 # snapshot intermediate results
-snapshot: 5000
-snapshot_prefix: "%(dev_path)s/../model/b_%(b)s_f_%(f)s_%(mode)s"
+snapshot: 1000
+snapshot_prefix: "/home/hongjiw/research/eecs442_project/rc_forecast_cnn/code/../model/b_25_f_50_ALEX"
 # solver mode: CPU or GPU
-solver_mode: CPU
+solver_mode: GPU

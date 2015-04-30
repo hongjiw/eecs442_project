@@ -20,7 +20,7 @@ def diff_ave(data):
 	v_vec /= (data.shape[3] - 1)
 	return v_vec
 
-def static_main(data, label, forecast_depth):
+def static_main(data, label, forecast_depth, logfile_path):
 
 	#static prediction
 	pred = np.reshape(data[:,:,:,data.shape[3]-1], [label.shape[0], 2])
@@ -32,8 +32,12 @@ def static_main(data, label, forecast_depth):
 
 	#report the loss
 	print 'static loss: ' + str(loss);
+
+	#log this
+	with open(logfile_path, "a") as logfile:
+		logfile.write('static loss: ' + str(loss) + '\n')
 	
-def constv_main(data, label, forecast_depth):
+def constv_main(data, label, forecast_depth, logfile_path):
 
 	#get average velocity
 	v_ave = diff_ave(data)
@@ -54,7 +58,11 @@ def constv_main(data, label, forecast_depth):
 	#report the loss
 	print 'constv loss: ' + str(loss);
 
-def consta_main(data, label, forecast_depth):
+	#log this
+	with open(logfile_path, "a") as logfile:
+		logfile.write('constv loss: ' + str(loss) + '\n')
+
+def consta_main(data, label, forecast_depth, logfile_path):
 
 	#make sure have enough dimention for acceleration calculation
 	assert(data.shape[3] > 2)
@@ -86,10 +94,13 @@ def consta_main(data, label, forecast_depth):
 	#report the loss
 	print 'consta loss: ' + str(loss);
 
-def baseline_main(data, label, forecast_depth):
+	#log this
+	with open(logfile_path, "a") as logfile:
+		logfile.write('consta loss: ' + str(loss) + '\n')
+
+def baseline_main(data, label, forecast_depth, logfile_path):
 
 	#baselines
-	static_main(data, label, forecast_depth)
-	constv_main(data, label, forecast_depth)
-	consta_main(data, label, forecast_depth)
-
+	static_main(data, label, forecast_depth, logfile_path)
+	constv_main(data, label, forecast_depth, logfile_path)
+	consta_main(data, label, forecast_depth, logfile_path)

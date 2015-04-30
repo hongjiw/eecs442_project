@@ -1,0 +1,13 @@
+
+bucket_size: 25
+forecast_depth 25
+mode: ALEX
+lr: 0.0001
+wd: 0.0005
+cnn test loss: 0.678313476257
+
+bucket_size: 25
+forecast_depth 50
+mode: ALEX
+lr: 0.0001
+wd: 0.0005

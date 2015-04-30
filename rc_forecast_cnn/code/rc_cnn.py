@@ -1,30 +1,25 @@
 #set up caffe module
 import sys
+import numpy as np
 import caffe
+from rc_metric import *
+
 caffe_root = '/home/hongjiw/research/library/caffe'
 sys.path.insert(0, caffe_root + 'python')
 
+def cnn_train(solver_file_path, logfile_path):
 
-def update_solver():
-	print "none"
-
-def update_train_test():
-	print "none"
-
-def update_network(rc_path, params):
-	template = open(rc_path['network_template'], "rt").read()
-
-	with open(rc_path['network'], "wt") as output:
-		output.write (template % params)
-
-def cnn_train(solver_file_path):
 	solver = caffe.get_solver(solver_file_path)
 	solver.solve()
 	solver.test_nets[0].forward()
 	loss = solver.test_nets[0].blobs['loss'].data
 	print "Test loss is: %f (Modify the prototxt to enable batch test)" %(loss)
+	#log this
+	with open(logfile_path, "a") as logfile:
+		logfile.write('cnn trainval loss: ' + str(loss) + '\n')
 
 def vis_square(data, title, padsize=1, padval=0):
+
 	data -= data.min()
 	data /= data.max()
 	# force the number of filters to be square
@@ -43,6 +38,7 @@ def vis_square(data, title, padsize=1, padval=0):
 	cv2.waitKey(0)
 
 def cnn_netinfo(network_file_path, pretrained_model_path):
+
 	#check if the file exists
 	if not os.path.isfile(pretrained_model_path and network_file_path):
 		print("Missing the input file")
@@ -71,6 +67,7 @@ def cnn_netinfo(network_file_path, pretrained_model_path):
 			vis_square(feat.transpose(0, 2, 3, 1), k)
 
 def rc_cnn_predict(net, data, rn, outlayer):
+
 	#make sure the batch size and the saved hdf5 size are equal 
 	#print data.shape
 	#print net.blobs['data'].data.shape
@@ -80,7 +77,7 @@ def rc_cnn_predict(net, data, rn, outlayer):
 	net.blobs['data'].data[...] = data	
 	input_blob_buffer = net.blobs['data'].data[...]
 	
-	#recurrent forecast
+	#recurrent forecast (but we are only using single forecast for now)
 	pred = np.array([])
 	for rn_ind in range(0,rn):
 		#forward pass the network
@@ -104,30 +101,26 @@ def rc_cnn_predict(net, data, rn, outlayer):
 	#return the forecast loss
 	return pred
 
-def cnn_main(params, rc_path):
+def cnn_main(data, label, params, rc_path, logfile_path):
+	
 	#use CPU modeNone
 	if params['gpu']:
 		caffe.set_mode_gpu()
 
 	#train the caffe
 	if params['retrain']:
-		cnn_train(rc_path['solver'])
+		cnn_train(rc_path['solver'], logfile_path)
 
 	#show the network infomation
 	if params['visual']:
-		cnn_netinfo(rc_path['network'], rc_path['model'])
+		cnn_netinfo(rc_path['test_prototxt'], rc_path['model'])
 
 	#initialize the caffe model
-	net = caffe.Net(rc_path['network'], rc_path['model'], caffe.TEST)
+	net = caffe.Net(rc_path['test_prototxt'], rc_path['model'], caffe.TEST)
 	
-	#read in data
-	if not os.path.isfile(rc_path['test_file']):
-		print("Missing the input file")
-	data, label = hdf5_read(rc_path['test_file'])
-
 	#rc prediction
-	pred = rc_cnn_predict(net, data, params['fc_depth'], 'fc1')
-
+	pred = rc_cnn_predict(net, data, 1, params['output_layer'])
+	
 	#save the predicted locations
 	if params['save']:
 		np.savetxt(rc_path['save_pred'], pred, fmt='%f', delimiter=',')
@@ -135,16 +128,12 @@ def cnn_main(params, rc_path):
 
 	#calculate loss
 	loss = rc_loss(pred, label)
-	print "Forecast loss with %d forecast depth is: %f" %(params['fc_depth'], loss)
 
-	#analysis
-	loss_stack = np.array([])
-	
-	for rn in range(1, params['fc_depth']+1):
-		pred = rc_cnn_predict(net, data, rn, 'fc1')
-		loss = rc_loss(pred, label)
-		loss_stack = np.hstack((loss_stack, loss))
+	#report the loss
+	print 'cnn test loss: ' + str(loss);
 
-	for rn in range(1, params['fc_depth']+1):
-		print "Loss with %d forecast depth(cnn rec1): %f" %(rn, loss_stack[rn-1])	
-	return loss_stack
+	#log this
+	with open(logfile_path, "a") as logfile:
+		logfile.write('cnn test loss: ' + str(loss) + '\n')
+
+	return loss

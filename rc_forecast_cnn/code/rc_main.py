@@ -1,10 +1,6 @@
 import numpy as np
-import scipy as sp
-import shutil
-import tempfile
 import matplotlib.pyplot as plt
 import io
-import cv2
 
 import os
 import sys
@@ -12,28 +8,67 @@ import sys
 from rc_baseline import *
 from rc_init import *
 from rc_cnn import *
+from misan import *
 
 if __name__ == '__main__':
 	
-	#setup basic parameters
-	bucket_size = 25;
-	forecast_depth = 50;
-	mode = 'MO'
+	#init
+	dev_path = '/home/hongjiw/research/eecs442_project/rc_forecast_cnn/code'
+	data_path = '/home/hongjiw/research/data/RC/clips'
 
-	rc_path, params = rc_init(bucket_size, forecast_depth, mode)
+	#record all the prediction results
+	logfile_path = dev_path + '/log.txt'
+	if os.path.isfile(logfile_path):
+		os.remove(logfile_path)
 
-	#read in data
-	data, label = hdf5_read(rc_path['test_file'])
+	mode = 'ALEX'
+	#mode = 'MO'
 
-	#baselines
-	baseline_main(data, label, params['forecast_depth'])
+	cnn_loss_min = sys.maxint
+	for bucket_size in range(25, 76, 25):
+		for forecast_depth in range(25, 76, 25):
+			with open(logfile_path, "a") as logfile:
+				logfile.write('\n')
+				logfile.write("bucket_size: " + str(bucket_size) + '\n')
+				logfile.write("forecast_depth " + str(forecast_depth) + '\n')
+				logfile.write("mode: " + str(mode) + '\n')
+				
+			rc_path, params = rc_init(dev_path, data_path, bucket_size, forecast_depth, mode)
 
-	#cnn 
-	update_network(rc_path, {"input_dim": data.shape[0]})
-	update_train_test()
+			#read in data
+			data, label = hdf5_read(rc_path['test_file'])
 
-	
-	#rc_path['model'] = '../model/rec_1_cfl_iter_10000.caffemodel'
-	
-	#cnn_loss_stack = cnn_main(params, rc_path)
+			print data.shape
+			print label.shape
+			#baselines
+			#baseline_main(data, label, params['forecast_depth'], logfile_path)
 
+			#cnn
+			for wd in [0.0005]:#frange(0.0005, 0.005, 0.001):
+				for lr in [0.0001]:#frange(0.00001, 0.0001, 0.00001): 0.00039
+
+					#log the learning rate and weight decay
+					with open(logfile_path, "a") as logfile:
+						logfile.write("lr: " + str(lr) + '\n')
+						logfile.write("wd: " + str(wd) + '\n')
+
+					#update the cnn network files
+					template_params = {"dev_path": dev_path, "data_path": data_path, 
+						"b": bucket_size, "f": forecast_depth, "mode": mode,
+						"input_num": label.shape[0], "output_dim": label.shape[1],
+						"lr": lr, "wd": wd
+					}
+					
+					update_template(rc_path['solver_template'], rc_path['solver'], template_params)
+					update_template(rc_path['test_prototxt_template'], rc_path['test_prototxt'], 
+							template_params)
+					update_template(rc_path['train_prototxt_template'], 
+							rc_path['train_prototxt'], template_params)
+					update_template(rc_path['train_list_template'], 
+							rc_path['train_list'], template_params)
+					update_template(rc_path['test_list_template'], 
+							rc_path['test_list'], template_params)
+
+
+					#cnn pipeline
+					cnn_loss = cnn_main(data, label, params, rc_path, logfile_path)

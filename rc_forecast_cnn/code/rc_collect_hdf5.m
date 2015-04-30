@@ -5,20 +5,20 @@ b_str = num2str(params.bucket_size);
 f_str = num2str(params.forecast_size);
 file_surffix = ['_b_', b_str, '_f_', f_str];
 
-if strcmp(params.mode, 'OF')
-    file_surffix = [file_surffix '_OF'];
+if strcmp(params.mode, 'ALEX')
+    file_surffix = [file_surffix '_ALEX'];
     h5_save_path.train = [path.data_path, '/train', file_surffix, '.h5'];
     h5_save_path.trainval = [path.data_path, '/trainval', file_surffix, '.h5'];
     h5_save_path.test = [path.data_path, '/test', file_surffix, '.h5'];
     path.h5_save_path = h5_save_path;
-    [train, trainval, test] = collect_data_OF(path.data_path, params, div_list);
+    [train, trainval, test] = collect_data_ALEX(path.data_path, params, div_list);
     
     %convert to hdf5 fomat
-    train_data_hdf5 = reshape(train.data, 128, 2*params.bucket_size, 1, size(train.data,2));
+    train_data_hdf5 = reshape(train.data, params.bucket_size, [], 1, size(train.data,2));
     train_label_hdf5 = train.label;
-    trainval_data_hdf5 = reshape(trainval.data, 128, 2*params.bucket_size, 1, size(trainval.data,2));
+    trainval_data_hdf5 = reshape(trainval.data,  params.bucket_size, [], 1, size(trainval.data,2));
     trainval_label_hdf5 = trainval.label;
-    test_data_hdf5 = reshape(test.data, 128, 2*params.bucket_size, 1, size(test.data,2));
+    test_data_hdf5 = reshape(test.data,  params.bucket_size, [], 1, size(test.data,2));
     test_label_hdf5 = test.label;
     
 else

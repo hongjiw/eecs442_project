@@ -1,0 +1,1 @@
+%(data_path)s/trainval_b_%(b)s_f_%(f)s_%(mode)s.h5

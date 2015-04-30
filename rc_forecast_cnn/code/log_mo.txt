@@ -1,0 +1,99 @@
+
+bucket_size: 25
+forecast_depth 25
+mode: MO
+static loss: 0.329338041473
+constv loss: 0.205981711697
+consta loss: 1.99441377268
+lr: 0.00039
+wd: 0.0005
+cnn trainval loss: 2.49457192421
+cnn test loss: 0.159230232228
+
+bucket_size: 25
+forecast_depth 50
+mode: MO
+static loss: 0.556901585895
+constv loss: 0.45420358188
+consta loss: 7.51862851501
+lr: 0.00039
+wd: 0.0005
+cnn trainval loss: 0.408003687859
+cnn test loss: 0.335168328577
+
+bucket_size: 25
+forecast_depth 75
+mode: MO
+static loss: 0.668354883724
+constv loss: 0.66634199758
+consta loss: 15.3993942123
+lr: 0.00039
+wd: 0.0005
+cnn trainval loss: 0.853521704674
+cnn test loss: 0.471040983574
+
+bucket_size: 50
+forecast_depth 25
+mode: MO
+static loss: 0.293410286141
+constv loss: 0.255333638176
+consta loss: 1.93560361896
+lr: 0.00039
+wd: 0.0005
+cnn trainval loss: 0.0250495579094
+cnn test loss: 0.161403140263
+
+bucket_size: 50
+forecast_depth 50
+mode: MO
+static loss: 0.480434909052
+constv loss: 0.505450585777
+consta loss: 7.21618774769
+lr: 0.00039
+wd: 0.0005
+cnn trainval loss: 0.346819072962
+cnn test loss: 0.339281467526
+
+bucket_size: 50
+forecast_depth 75
+mode: MO
+static loss: 0.587698386137
+constv loss: 0.776409208927
+consta loss: 15.6200648717
+lr: 0.00039
+wd: 0.0005
+cnn trainval loss: 3.34015011787
+cnn test loss: 0.511224964455
+
+bucket_size: 75
+forecast_depth 25
+mode: MO
+static loss: 0.279835981484
+constv loss: 0.286137536124
+consta loss: 1.87552553428
+lr: 0.00039
+wd: 0.0005
+cnn trainval loss: 0.0596949420869
+cnn test loss: 0.180162574106
+
+bucket_size: 75
+forecast_depth 50
+mode: MO
+static loss: 0.459653659147
+constv loss: 0.595814465273
+consta loss: 7.37293857424
+lr: 0.00039
+wd: 0.0005
+cnn trainval loss: 0.266728878021
+cnn test loss: 0.391424288294
+
+bucket_size: 75
+forecast_depth 75
+mode: MO
+static loss: 0.554540403125
+constv loss: 0.899940010107
+consta loss: 15.9745402198
+lr: 0.00039
+wd: 0.0005
+cnn trainval loss: 2.70238208771
+cnn test loss: 0.594157615631

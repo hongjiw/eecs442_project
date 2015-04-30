@@ -1,0 +1,13 @@
+#code for eecs442 final project
+
+To use the code for mostion estimation
+
+1. Install CAFFE FIRST
+2. Change the path in rc_main.py
+3. Change the rc_init.py to point to your data path
+
+To use the code to generate training and testing data
+
+1. Install MATLAB
+2. Change the path in rc_prep.m
+3. Run it

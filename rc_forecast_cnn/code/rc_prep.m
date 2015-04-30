@@ -47,8 +47,6 @@ div_list.trainval_list = trainval_list;
 path.data_path = data_path;
 path.dev_path = dev_path;
 
-params.tracker_loc_name = 'tracker_loc.txt';
-
 %set true for Optical Flow mode
 params.mode = 'motion'; 
 

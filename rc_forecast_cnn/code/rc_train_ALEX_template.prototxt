@@ -23,39 +23,14 @@ layer {
   }
   hdf5_data_param {
     source: "/home/hongjiw/research/eecs442_project/rc_forecast_cnn/code/test_list.txt"
-    batch_size: 100
+    batch_size: 1
   }
 }
-
 layer {
   name: "conv1"
   type: "Convolution"
   bottom: "data"
   top: "conv1"
-  param {
-    lr_mult: 1
-  }
-  param {
-    lr_mult: 2
-  }
-  convolution_param {
-    num_output: 10 
-    kernel_size: 2
-    stride: 1
-    weight_filler {
-      type: "xavier"
-    }
-    bias_filler {
-      type: "constant"
-    }
-  }
-}
-
-layer {
-  name: "fc1"
-  type: "InnerProduct"
-  bottom: "conv1"
-  top: "fc1"
   param {
     lr_mult: 1
     decay_mult: 1
@@ -64,8 +39,11 @@ layer {
     lr_mult: 2
     decay_mult: 0
   }
-  inner_product_param {
-    num_output: 2
+  convolution_param {
+    num_output: 5
+    kernel_h: 10
+    kernel_w: 2
+    stride: 2
     weight_filler {
       type: "gaussian"
       std: 0.01
@@ -76,11 +54,81 @@ layer {
     }
   }
 }
-
 layer {
-  name: "loss"
-  type: "EuclideanLoss"
+  name: "pool1"
+  type: "Pooling"
+  bottom: "conv1"
+  top: "pool1"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 2
+  }
+}
+layer {
+  name: "fc1"
+  type: "InnerProduct"
+  bottom: "pool1"
+  top: "fc1"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1000
+    weight_filler {
+      type: "gaussian"
+      std: 0.005
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.1
+    }
+  }
+}
+layer {
+  name: "fc2"
+  type: "InnerProduct"
   bottom: "fc1"
+  top: "fc2"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: %(output_dim)s
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "test_loss"
+  type: "EuclideanLoss"
+  bottom: "fc2"
   bottom: "label"
-  top: "loss"
+  top: "test_loss"
+  include {
+    phase: TEST
+  }
+}
+layer {
+  name: "train_loss"
+  type: "EuclideanLoss"
+  bottom: "fc2"
+  bottom: "label"
+  top: "train_loss"
 }
