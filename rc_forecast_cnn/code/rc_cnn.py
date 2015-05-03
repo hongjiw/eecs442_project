@@ -78,26 +78,11 @@ def rc_cnn_predict(net, data, rn, outlayer):
 	input_blob_buffer = net.blobs['data'].data[...]
 	
 	#recurrent forecast (but we are only using single forecast for now)
-	pred = np.array([])
-	for rn_ind in range(0,rn):
-		#forward pass the network
-		net.forward()
+	net.forward()
 
-		#collect the prediction
-		loc = net.blobs[outlayer].data
-		if not pred.any():
-			pred = np.copy(loc)
-		else:
-			pred = np.concatenate((pred, loc), axis=1)
-		#update the input blob for recurrent prediction
-		if rn > 1:
-			input_blob_prev = np.split(input_blob_buffer, [1], axis=3)[1]
-			input_blob_new = np.split(input_blob_buffer, [1], axis=3)[0]
-			input_blob_new = np.reshape(loc, input_blob_new.shape)
-			input_blob = np.concatenate((input_blob_prev, input_blob_new), axis=3)
-			net.blobs['data'].data[...] = np.copy(input_blob)
-			input_blob_buffer = np.copy(input_blob)
-
+	#collect the prediction
+	loc = net.blobs[outlayer].data
+	pred = np.copy(loc)
 	#return the forecast loss
 	return pred
 

@@ -12,7 +12,7 @@ from misan import *
 
 if __name__ == '__main__':
 	
-	#init
+	#path
 	dev_path = '/home/hongjiw/research/eecs442_project/rc_forecast_cnn/code'
 	data_path = '/home/hongjiw/research/data/RC/clips'
 
@@ -21,10 +21,12 @@ if __name__ == '__main__':
 	if os.path.isfile(logfile_path):
 		os.remove(logfile_path)
 
+	#caffe fearure
 	mode = 'ALEX'
+
+	#motion feature
 	#mode = 'MO'
 
-	cnn_loss_min = sys.maxint
 	for bucket_size in range(25, 76, 25):
 		for forecast_depth in range(25, 76, 25):
 			with open(logfile_path, "a") as logfile:
@@ -32,16 +34,15 @@ if __name__ == '__main__':
 				logfile.write("bucket_size: " + str(bucket_size) + '\n')
 				logfile.write("forecast_depth " + str(forecast_depth) + '\n')
 				logfile.write("mode: " + str(mode) + '\n')
-				
+			
+			#initialize parameters(path) for CNN
 			rc_path, params = rc_init(dev_path, data_path, bucket_size, forecast_depth, mode)
 
 			#read in data
 			data, label = hdf5_read(rc_path['test_file'])
 
-			print data.shape
-			print label.shape
 			#baselines
-			#baseline_main(data, label, params['forecast_depth'], logfile_path)
+			baseline_main(data, label, params['forecast_depth'], logfile_path)
 
 			#cnn
 			for wd in [0.0005]:#frange(0.0005, 0.005, 0.001):
